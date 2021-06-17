@@ -21,6 +21,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  margin: 0;
 }
 
 input[type="checkbox"] {
@@ -56,10 +57,15 @@ app.patch('/toggle/:i', (request, response) => {
 });
 
 app.get('/c', (request, response) => {
-  response.send({value: currentValue});
+  if (n < 8) {
+    response.send({value: `Players: ${n}`});
+  } else {
+    response.send({value: currentValue});
+  }
 });
 
 app.get('/v', (request, response) => {
+  n = 0;
   response.send(`
 <html>
   <head>
@@ -73,6 +79,7 @@ body {
   align-items: center;
   font-size: 80px;
   font-family: sans-serif;
+  margin: 0;
 }
     </style>
   </head>
