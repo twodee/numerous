@@ -1,12 +1,14 @@
 const express = require('express');
 
 const app = express();
+const expressWs = require('express-ws')(app);
 const port = 3030;
 
 let n = 0;
 let targetN = 8;
 let currentValue = 0;
 let sessionId = -1;
+let websocket = null;
 
 app.get('/', (request, response) => {
   const i = n;
@@ -16,6 +18,7 @@ app.get('/', (request, response) => {
   <html>
     <head>
       <title>Numerous</title>
+      <link rel="icon" href="data:,">
       <style>
   body {
     width: 100%;
@@ -56,11 +59,13 @@ app.get('/', (request, response) => {
     </body>
   </html>
     `);
+    pushAdmin();
   } else {
     response.send(`
   <html>
     <head>
       <title>Numerous</title>
+      <link rel="icon" href="data:,">
       <style>
   body {
     width: 100%;
@@ -83,6 +88,19 @@ app.get('/', (request, response) => {
   }
 });
 
+function pushAdmin() {
+  console.log("push admin");
+  if (websocket) {
+    if (n < targetN) {
+      console.log("sending n");
+      websocket.send(JSON.stringify({value: `Players: ${n}/${targetN}`}));
+    } else {
+      console.log("sending value");
+      websocket.send(JSON.stringify({value: currentValue}));
+    }
+  }
+}
+
 app.patch('/toggle/:i/session/:sessionId', (request, response) => {
   const playerSessionId = parseInt(request.params.sessionId);
   if (playerSessionId === sessionId) {
@@ -92,6 +110,7 @@ app.patch('/toggle/:i/session/:sessionId', (request, response) => {
       ok: true,
       message: ':)',
     });
+    pushAdmin();
   } else {
     response.send({
       ok: false,
@@ -122,6 +141,7 @@ app.get('/v/:target', (request, response) => {
 <html>
   <head>
     <title>Numerous</title>
+    <link rel="icon" href="data:,">
     <style>
 body {
   width: 100%;
@@ -140,18 +160,43 @@ body {
     <script>
 
 const valueText = document.getElementById('value-text');
-setInterval(() => {
-  fetch('/c')
-    .then(response => response.json())
-    .then(data => {
-      valueText.innerText = data.value;
-    });
-}, 500);
+// setInterval(() => {
+  // fetch('/c')
+    // .then(response => response.json())
+    // .then(data => {
+      // valueText.innerText = data.value;
+    // });
+// }, 500);
+
+const socket = new WebSocket('wss://numerous.twodee.org:8443/');
+
+socket.addEventListener('error', event => {
+  console.log("event:", event);
+});
+
+socket.addEventListener('message', event => {
+  const payload = JSON.parse(event.data);
+  console.log('message', event.data);
+  valueText.innerText = payload.value;
+});
+
+socket.addEventListener('open', event => {
+  console.log("opened");
+  socket.send('ping');
+});
 
     </script>
   </body>
 </html>
   `);
+});
+
+app.ws('/', (ws, request) => {
+  websocket = ws;
+  websocket.on('message', message => {
+    console.log(message);
+    pushAdmin();
+  });
 });
 
 app.listen(port, () => {
